@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from common.user_display import usuario_exibicao
+from produtos.models import Produto
 from .models import HistoricoStatusOrcamento, Orcamento, ItemOrcamento, StatusOrcamento
 
 
@@ -66,10 +67,63 @@ class HistoricoStatusOrcamentoSerializer(serializers.ModelSerializer):
 class ItemOrcamentoSerializer(serializers.ModelSerializer):
     valor_total = serializers.ReadOnlyField()
     orcamento = serializers.PrimaryKeyRelatedField(queryset=Orcamento.objects.all(), required=False)
+    produto = serializers.PrimaryKeyRelatedField(
+        queryset=Produto.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = ItemOrcamento
-        fields = ['id', 'orcamento', 'tipo', 'descricao', 'quantidade', 'valor_unitario', 'valor_total']
+        fields = [
+            'id',
+            'orcamento',
+            'tipo',
+            'descricao',
+            'quantidade',
+            'valor_unitario',
+            'valor_total',
+            'produto',
+        ]
+
+    def validate(self, attrs):
+        inst = self.instance
+        tipo = attrs.get('tipo', inst.tipo if inst else None) or 'servico'
+        produto_in_attrs = 'produto' in attrs
+
+        if tipo == 'servico':
+            attrs['produto'] = None
+        else:
+            p = attrs['produto'] if produto_in_attrs else (inst.produto if inst else None)
+            if p is None:
+                raise serializers.ValidationError(
+                    {
+                        'produto': 'Itens do tipo Produto devem referenciar um produto cadastrado. '
+                        'Use o tipo Serviço para descrição livre.'
+                    }
+                )
+            attrs['produto'] = p
+            attrs.setdefault('descricao', p.descricao[:200])
+            attrs.setdefault('valor_unitario', p.valor)
+
+        if 'descricao' in attrs and attrs['descricao'] is not None:
+            attrs['descricao'] = str(attrs['descricao']).strip()[:200]
+        desc = attrs.get('descricao', inst.descricao if inst else '') or ''
+        desc = str(desc).strip()
+        p_obj = attrs.get('produto', inst.produto if inst else None)
+        if tipo == 'peca' and p_obj is not None and not desc:
+            attrs['descricao'] = p_obj.descricao[:200]
+            desc = attrs['descricao']
+
+        vu = attrs.get('valor_unitario', inst.valor_unitario if inst else None)
+        q = attrs.get('quantidade', inst.quantidade if inst else None)
+        if not desc:
+            raise serializers.ValidationError({'descricao': 'Informe a descrição do item.'})
+        if vu is None:
+            raise serializers.ValidationError({'valor_unitario': 'Obrigatório.'})
+        if q is None or int(q) < 1:
+            raise serializers.ValidationError({'quantidade': 'Quantidade inválida.'})
+        return attrs
 
 
 class OrcamentoSerializer(serializers.ModelSerializer):
@@ -192,9 +246,45 @@ class OrcamentoSerializer(serializers.ModelSerializer):
 class ItemOrcamentoCreateSerializer(serializers.ModelSerializer):
     """Serializer para criação de itens dentro do payload de orçamento"""
 
+    produto = serializers.PrimaryKeyRelatedField(
+        queryset=Produto.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+
     class Meta:
         model = ItemOrcamento
-        fields = ['tipo', 'descricao', 'quantidade', 'valor_unitario']
+        fields = ['tipo', 'descricao', 'quantidade', 'valor_unitario', 'produto']
+
+    def validate(self, attrs):
+        tipo = attrs.get('tipo', 'servico')
+        if tipo == 'servico':
+            attrs['produto'] = None
+        elif tipo == 'peca':
+            p = attrs.get('produto')
+            if p is None:
+                raise serializers.ValidationError(
+                    {
+                        'produto': 'Itens do tipo Produto devem referenciar um produto cadastrado. '
+                        'Use o tipo Serviço para descrição livre.'
+                    }
+                )
+            attrs.setdefault('descricao', p.descricao[:200])
+            attrs.setdefault('valor_unitario', p.valor)
+        if attrs.get('descricao') is not None:
+            attrs['descricao'] = str(attrs['descricao']).strip()[:200]
+        desc = (attrs.get('descricao') or '').strip()
+        p = attrs.get('produto')
+        if tipo == 'peca' and p is not None and not desc:
+            attrs['descricao'] = p.descricao[:200]
+            desc = attrs['descricao']
+        if not desc:
+            raise serializers.ValidationError({'descricao': 'Informe a descrição do item.'})
+        if attrs.get('valor_unitario') is None:
+            raise serializers.ValidationError({'valor_unitario': 'Obrigatório.'})
+        if attrs.get('quantidade') is None or int(attrs['quantidade']) < 1:
+            raise serializers.ValidationError({'quantidade': 'Quantidade inválida.'})
+        return attrs
 
 
 class OrcamentoCreateSerializer(serializers.ModelSerializer):

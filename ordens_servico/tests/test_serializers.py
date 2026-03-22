@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
 from clientes.models import Cliente
+from produtos.models import Produto
 from ordens_servico.models import Orcamento, ItemOrcamento
 from ordens_servico.tests.support import criar_empresa, criar_status
 from ordens_servico.serializers import (
@@ -162,9 +163,11 @@ class ItemOrcamentoSerializerTest(TestCase):
     
     def test_item_servico_create_serializer_valid(self):
         """Testa criação de item com serializer válido"""
+        Produto.objects.create(codigo=1, descricao='Peça X', valor=100)
         data = {
             'orcamento': self.orcamento.id,
             'tipo': 'peca',
+            'produto': 1,
             'descricao': 'Peça X',
             'quantidade': 1,
             'valor_unitario': '100.00'

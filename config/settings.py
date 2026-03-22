@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     # Third party apps
+    'whitenoise.runserver_nostatic',
     'rest_framework',
     'drf_spectacular',
     'corsheaders',
@@ -75,12 +76,14 @@ INSTALLED_APPS = [
     'autenticacao',
     'configuracoes',
     'clientes',
+    'produtos',
     'ordens_servico',
     'dashboard',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'config.middleware.request_id.RequestIdMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -209,8 +212,25 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-MEDIA_URL = 'media/'
+# WhiteNoise: comprime e serve estáticos em produção (após collectstatic).
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+    },
+}
+
+MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Se True e DEBUG=False, Django expõe /media/ (menos ideal que Nginx + volume).
+# No Compose com profile with-frontend, o Nginx serve o volume diretamente.
+SERVE_MEDIA_VIA_DJANGO = os.getenv('SERVE_MEDIA_VIA_DJANGO', 'False') == 'True'
+
+# Swagger/OpenAPI: em produção fica desligado salvo API_DOCS_ENABLED=True (reduz superfície de ataque).
+API_DOCS_ENABLED = os.getenv('API_DOCS_ENABLED', 'False') == 'True'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

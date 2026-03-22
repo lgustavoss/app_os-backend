@@ -1,6 +1,6 @@
 # app_os-backend
 
-Backend do sistema de emissão de orçamentos, desenvolvido em Python com Django REST Framework (DRF).
+Backend do sistema de emissão de orçamentos (Django REST Framework). No monorepo, a pasta deve chamar-se **`app_os-backend`**.
 
 ## Índice
 
@@ -40,8 +40,8 @@ Backend do sistema de emissão de orçamentos, desenvolvido em Python com Django
 
 1. **Clone o repositório:**
    ```bash
-   git clone https://github.com/lgustavoss/opp_os-backend.git
-   cd opp_os-backend
+   git clone https://github.com/lgustavoss/app_os-backend.git
+   cd app_os-backend
    ```
 
 2. **Crie o arquivo `.env`** a partir do exemplo:

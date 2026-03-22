@@ -4,6 +4,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from clientes.models import Cliente
 from ordens_servico.models import HistoricoStatusOrcamento, Orcamento, ItemOrcamento
+from produtos.models import Produto
 from ordens_servico.tests.support import criar_empresa, definir_empresa_atual, criar_status
 
 
@@ -151,6 +152,7 @@ class OrcamentoViewSetTest(TestCase):
     
     def test_criar_orcamento_com_itens(self):
         """Testa criação de orçamento já com itens"""
+        Produto.objects.create(codigo=1, descricao='Peça X', valor=100)
         data = {
             'cliente': self.cliente.id,
             'descricao': 'Orçamento com itens',
@@ -164,6 +166,7 @@ class OrcamentoViewSetTest(TestCase):
                 },
                 {
                     'tipo': 'peca',
+                    'produto': 1,
                     'descricao': 'Peça X',
                     'quantidade': 1,
                     'valor_unitario': '100.00'
@@ -186,6 +189,7 @@ class OrcamentoViewSetTest(TestCase):
         self.assertEqual(response.data['itens'][0]['tipo'], 'servico')
         self.assertEqual(response.data['itens'][1]['descricao'], 'Peça X')
         self.assertEqual(response.data['itens'][1]['tipo'], 'peca')
+        self.assertEqual(response.data['itens'][1]['produto'], 1)
 
     def test_criar_orcamento_com_desconto_acrescimo(self):
         """Testa criação de orçamento com desconto e acréscimo"""
@@ -461,9 +465,11 @@ class OrcamentoViewSetTest(TestCase):
             format='json'
         )
         
+        Produto.objects.create(codigo=1, descricao='Peça X', valor=100)
         # Adicionar segundo item
         data2 = {
             'tipo': 'peca',
+            'produto': 1,
             'descricao': 'Peça X',
             'quantidade': 1,
             'valor_unitario': '100.00'
@@ -535,7 +541,7 @@ class ItemOrcamentoViewSetTest(TestCase):
             status=self.st_it,
             usuario_criacao=self.usuario
         )
-        
+        self.prod_item = Produto.objects.create(codigo=1, descricao='Peça X', valor=100)
         self.item1 = ItemOrcamento.objects.create(
             orcamento=self.orcamento,
             tipo='servico',
@@ -548,7 +554,8 @@ class ItemOrcamentoViewSetTest(TestCase):
             tipo='peca',
             descricao='Peça X',
             quantidade=1,
-            valor_unitario=100.00
+            valor_unitario=100.00,
+            produto=self.prod_item,
         )
     
     def test_listar_itens_servico(self):
