@@ -50,11 +50,15 @@ class OrcamentoViewSet(viewsets.ModelViewSet):
         if action == 'retrieve':
             return qs.prefetch_related(
                 Prefetch(
+                    'itens',
+                    queryset=ItemOrcamento.objects.select_related('produto'),
+                ),
+                Prefetch(
                     'historicos_status',
                     queryset=HistoricoStatusOrcamento.objects.select_related(
                         'usuario', 'status_anterior', 'status_novo'
                     ).order_by('data_registro', 'id'),
-                )
+                ),
             )
 
         if action == 'gerar_pdf':
@@ -299,7 +303,9 @@ class ItemOrcamentoViewSet(viewsets.ModelViewSet):
         empresa = get_empresa_atual(self.request)
         if not empresa:
             return ItemOrcamento.objects.none()
-        return ItemOrcamento.objects.filter(orcamento__empresa=empresa)
+        return ItemOrcamento.objects.filter(orcamento__empresa=empresa).select_related(
+            'orcamento', 'produto'
+        )
 
     def _recalcular_orcamento(self, orcamento, user):
         """Recalcula o valor total e registra quem alterou o orçamento (via itens)."""

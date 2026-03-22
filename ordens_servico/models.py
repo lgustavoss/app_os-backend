@@ -298,7 +298,15 @@ class ItemOrcamento(models.Model):
         decimal_places=2,
         verbose_name='Valor Unitário'
     )
-    
+    produto = models.ForeignKey(
+        'produtos.Produto',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='itens_orcamento',
+        verbose_name='Produto do cadastro',
+    )
+
     class Meta:
         verbose_name = 'Item de Orçamento'
         verbose_name_plural = 'Itens de Orçamento'

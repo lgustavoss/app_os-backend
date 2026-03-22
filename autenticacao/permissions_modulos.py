@@ -73,6 +73,30 @@ class OrcamentoModulePermission(BasePermission):
         return False
 
 
+class ProdutoModulePermission(BasePermission):
+    """
+    Catálogo de produtos (orçamentos): mesmas flags do módulo de orçamentos,
+    para não acrescentar campos em PerfilUsuario.
+    """
+
+    message = 'Sem permissão para acessar produtos.'
+
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        if usuario_eh_staff(request.user):
+            return True
+        p = _perfil(request.user)
+        if not p:
+            return False
+        action = getattr(view, 'action', None)
+        if action in ('list', 'retrieve'):
+            return p.orcamentos_pode_visualizar
+        if action in ('create', 'update', 'partial_update', 'destroy'):
+            return p.orcamentos_pode_cadastrar
+        return False
+
+
 class StatusOrcamentoPermission(BasePermission):
     """
     CRUD de status de orçamentos: mesmo critério de configurações

@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.contrib.auth.models import User
 from clientes.models import Cliente
+from produtos.models import Produto
 from ordens_servico.models import Orcamento, ItemOrcamento
 from ordens_servico.services import gerar_pdf_orcamento
 from ordens_servico.tests.support import criar_empresa, criar_status
@@ -40,12 +41,14 @@ class GerarPDFOrcamentoTest(TestCase):
             quantidade=2,
             valor_unitario=250.00
         )
+        p = Produto.objects.create(codigo=1, descricao='Peças', valor=100)
         ItemOrcamento.objects.create(
             orcamento=self.orcamento,
             tipo='peca',
             descricao='Peças',
             quantidade=1,
-            valor_unitario=100.00
+            valor_unitario=100.00,
+            produto=p,
         )
     
     def test_gerar_pdf_orcamento(self):
