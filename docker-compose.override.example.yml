@@ -1,0 +1,10 @@
+# Copie para `docker-compose.override.yml` (mesmo diretório) se precisar expor o Postgres
+# na sua máquina (pgAdmin, DBeaver). O Compose mescla automaticamente.
+# Use bind em 127.0.0.1 para não publicar na rede local inteira.
+#
+#   copy docker-compose.override.example.yml docker-compose.override.yml
+
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
