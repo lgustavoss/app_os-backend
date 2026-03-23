@@ -16,6 +16,7 @@ services:
       timeout: 5s
       retries: 5
 
+  # Apenas desenvolvimento — em produção use o Dockerfile com Gunicorn (ver documentação de deploy).
   web:
     build: .
     container_name: app_os_web

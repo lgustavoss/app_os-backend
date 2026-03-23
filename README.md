@@ -1,6 +1,6 @@
 # app_os-backend
 
-Backend do sistema de emissão de orçamentos (Django REST Framework). No monorepo, a pasta deve chamar-se **`app_os-backend`**.
+Backend do sistema de emissão de orçamentos (Django REST Framework). Este repositório é **independente** do frontend (outro projeto Git / outro deploy). O front consome esta API via `VITE_API_BASE_URL` (ou proxy em desenvolvimento).
 
 ## Índice
 
@@ -179,16 +179,29 @@ O projeto inclui `docker-run.sh` para facilitar operações:
 
 ## Testes
 
+### Com Docker neste repositório (`docker-compose.yml`)
+
+Com Postgres a subir via `depends_on` (serviço **`web`**):
+
 ```bash
-# Todos os testes
-docker-compose exec web python manage.py test
+docker compose build
+docker compose run --rm --no-deps web python manage.py makemigrations --check --dry-run
+docker compose run --rm web sh -c "pip install -q -r requirements-dev.txt && pytest -q"
+```
+
+`requirements-dev.txt` inclui `pytest` e `pytest-django` (não entram na imagem de produção).
+
+### Testes com `manage.py test` (container já a correr)
+
+```bash
+docker compose exec web python manage.py test
 
 # Por app
-docker-compose exec web python manage.py test clientes
-docker-compose exec web python manage.py test ordens_servico
+docker compose exec web python manage.py test clientes
+docker compose exec web python manage.py test ordens_servico
 
 # Com verbosidade
-docker-compose exec web python manage.py test --verbosity=2
+docker compose exec web python manage.py test --verbosity=2
 ```
 
 ## Licença

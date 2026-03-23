@@ -1,0 +1,4 @@
+# Testes locais / CI (não entra na imagem de produção por defeito)
+-r requirements.txt
+pytest==9.0.2
+pytest-django==4.12.0

@@ -1,6 +1,6 @@
 """Fluxos críticos: multi-empresa, paginação da API e PDF."""
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -93,6 +93,9 @@ class MultiEmpresaPaginacaoPDFTest(TestCase):
 
 
 class OpenAPISchemaTest(TestCase):
+    """O schema só é exposto com DEBUG=True ou API_DOCS_ENABLED (não depende do .env do host)."""
+
+    @override_settings(DEBUG=True)
     def test_schema_v1_disponivel(self):
         r = APIClient().get('/api/v1/schema/')
         self.assertEqual(r.status_code, status.HTTP_200_OK)

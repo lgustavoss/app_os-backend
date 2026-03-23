@@ -3,6 +3,7 @@ URL configuration for app_os project.
 """
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import Http404
 from django.urls import include, path, re_path
 from django.views.static import serve
 from drf_spectacular.views import (
@@ -14,26 +15,47 @@ from drf_spectacular.views import (
 from config.api_urls import urlpatterns as api_v1_urlpatterns
 from config.health_views import HealthLiveView, HealthReadyView
 
+
+def _api_docs_allowed() -> bool:
+    return settings.DEBUG or getattr(settings, 'API_DOCS_ENABLED', False)
+
+
+class _DocsGateMixin:
+    """404 em produção sem API_DOCS_ENABLED — avaliado em tempo de pedido (tests com override_settings)."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if not _api_docs_allowed():
+            raise Http404()
+        return super().dispatch(request, *args, **kwargs)
+
+
+class SpectacularAPIViewGated(_DocsGateMixin, SpectacularAPIView):
+    pass
+
+
+class SpectacularSwaggerViewGated(_DocsGateMixin, SpectacularSwaggerView):
+    pass
+
+
+class SpectacularRedocViewGated(_DocsGateMixin, SpectacularRedocView):
+    pass
+
+
 urlpatterns = [
     path('health/', HealthLiveView.as_view(), name='health-live'),
     path('health/ready/', HealthReadyView.as_view(), name='health-ready'),
+    path('api/v1/schema/', SpectacularAPIViewGated.as_view(), name='schema'),
+    path(
+        'api/v1/docs/',
+        SpectacularSwaggerViewGated.as_view(url_name='schema'),
+        name='swagger-ui',
+    ),
+    path(
+        'api/v1/redoc/',
+        SpectacularRedocViewGated.as_view(url_name='schema'),
+        name='redoc',
+    ),
 ]
-
-# OpenAPI / Swagger — só em DEBUG ou com API_DOCS_ENABLED=True.
-if settings.DEBUG or getattr(settings, 'API_DOCS_ENABLED', False):
-    urlpatterns += [
-        path('api/v1/schema/', SpectacularAPIView.as_view(), name='schema'),
-        path(
-            'api/v1/docs/',
-            SpectacularSwaggerView.as_view(url_name='schema'),
-            name='swagger-ui',
-        ),
-        path(
-            'api/v1/redoc/',
-            SpectacularRedocView.as_view(url_name='schema'),
-            name='redoc',
-        ),
-    ]
 
 urlpatterns += [
     path('api/v1/', include(api_v1_urlpatterns)),

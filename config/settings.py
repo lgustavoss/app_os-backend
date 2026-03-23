@@ -278,6 +278,26 @@ _csrf_main = _csv_env('CSRF_TRUSTED_ORIGINS')
 _csrf_extra = _csv_env('CSRF_TRUSTED_ORIGINS_EXTRA')
 CSRF_TRUSTED_ORIGINS = (_csrf_main + _csrf_extra) if _csrf_main else (_DEFAULT_CORS + _csrf_extra)
 
+if not DEBUG:
+    from django.core.exceptions import ImproperlyConfigured
+
+    if not _cors_main:
+        raise ImproperlyConfigured(
+            'Em produção (DEBUG=False), defina CORS_ALLOWED_ORIGINS com as origens exatas do '
+            'frontend (HTTPS), separadas por vírgula.'
+        )
+    if not _csrf_main:
+        raise ImproperlyConfigured(
+            'Em produção (DEBUG=False), defina CSRF_TRUSTED_ORIGINS com as mesmas origens do '
+            'SPA (HTTPS), separadas por vírgula.'
+        )
+    if not ALLOWED_HOSTS:
+        raise ImproperlyConfigured(
+            'Em produção (DEBUG=False), ALLOWED_HOSTS não pode estar vazio.'
+        )
+    if any(h == '*' for h in ALLOWED_HOSTS):
+        raise ImproperlyConfigured('ALLOWED_HOSTS não pode conter "*".')
+
 # Cookies de sessão (login por sessão). SameSite=None exige Secure — ver USE_TLS.
 SESSION_COOKIE_HTTPONLY = True
 _samesite = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax').strip()

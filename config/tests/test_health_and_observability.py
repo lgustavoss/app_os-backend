@@ -1,4 +1,4 @@
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 
 
 class HealthEndpointsTests(TestCase):
@@ -25,6 +25,13 @@ class RequestIdTests(TestCase):
         rid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
         r = c.get('/health/', HTTP_X_REQUEST_ID=rid)
         self.assertEqual(r['X-Request-ID'], rid)
+
+
+class OpenAPIDocsGateTests(TestCase):
+    @override_settings(DEBUG=False, API_DOCS_ENABLED=False)
+    def test_schema_retorna_404_quando_docs_desligados(self):
+        r = self.client.get('/api/v1/schema/')
+        self.assertEqual(r.status_code, 404)
 
 
 class BuildLoggingDictTests(TestCase):

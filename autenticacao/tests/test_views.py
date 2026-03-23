@@ -185,3 +185,15 @@ class UserViewTest(TestCase):
         # IsAuthenticated retorna 403
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
+
+class CsrfCookieViewTest(TestCase):
+    """GET /api/v1/auth/csrf/ — token no JSON e cookie para front noutra origem."""
+
+    def test_retorna_csrf_e_cookie(self):
+        client = APIClient()
+        response = client.get('/api/v1/auth/csrf/')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('csrfToken', response.data)
+        self.assertGreater(len(response.data['csrfToken']), 10)
+        self.assertIn('csrftoken', client.cookies)
+

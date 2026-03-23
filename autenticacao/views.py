@@ -1,7 +1,10 @@
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.models import User
+from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django_ratelimit.core import is_ratelimited
 from rest_framework import status, views, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
@@ -16,6 +19,23 @@ from .serializers import (
     ValidarSenhaEntradaSerializer,
     checar_regras_senha,
 )
+
+
+@method_decorator(ensure_csrf_cookie, name='dispatch')
+class CsrfCookieView(views.APIView):
+    """
+    GET — devolve o token CSRF no JSON e define o cookie csrftoken no domínio da API.
+
+    Com front e API em origens diferentes, o JavaScript do SPA não lê cookies da API
+    via document.cookie; o cliente deve chamar este endpoint e enviar o token em
+    X-CSRFToken nos métodos não seguros (sessão + DRF).
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        return Response({'csrfToken': get_token(request)})
 
 
 class LoginView(views.APIView):
