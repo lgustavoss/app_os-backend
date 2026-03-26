@@ -6,6 +6,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from autenticacao.permissions_modulos import OrcamentoModulePermission, StatusOrcamentoPermission
 from autenticacao.views import get_empresa_atual
+from produtos.models import MovimentacaoEstoque
+from produtos.services import EstoqueError, movimentar_estoque
 from .models import HistoricoStatusOrcamento, Orcamento, ItemOrcamento, StatusOrcamento
 from .serializers import (
     OrcamentoSerializer,
@@ -18,6 +20,41 @@ from .services import gerar_pdf_orcamento
 
 
 class OrcamentoViewSet(viewsets.ModelViewSet):
+    def _status_gera_movimentacao_estoque(self, status_obj):
+        return bool(getattr(status_obj, 'movimenta_estoque_saida', False))
+
+    def _ja_movimentou_estoque_por_status(self, orcamento, status_obj):
+        return MovimentacaoEstoque.objects.filter(
+            empresa=orcamento.empresa,
+            orcamento=orcamento,
+            status_orcamento=status_obj,
+            origem=MovimentacaoEstoque.Origem.STATUS_ORCAMENTO,
+            tipo=MovimentacaoEstoque.Tipo.SAIDA,
+        ).exists()
+
+    def _movimentar_estoque_orcamento_por_status(self, orcamento, status_obj, usuario):
+        if not self._status_gera_movimentacao_estoque(status_obj):
+            return
+        if self._ja_movimentou_estoque_por_status(orcamento, status_obj):
+            return
+
+        itens_saida = orcamento.itens.select_related('produto').filter(
+            tipo='peca',
+            produto__isnull=False,
+        )
+        for item in itens_saida:
+            movimentar_estoque(
+                empresa=orcamento.empresa,
+                produto_id=item.produto_id,
+                tipo=MovimentacaoEstoque.Tipo.SAIDA,
+                quantidade=item.quantidade,
+                usuario=usuario,
+                observacao=f'Saída vinculada ao orçamento {orcamento.numero}.',
+                origem=MovimentacaoEstoque.Origem.STATUS_ORCAMENTO,
+                orcamento=orcamento,
+                status_orcamento=status_obj,
+            )
+
     """
     ViewSet para gerenciar Orçamentos (filtrados pela empresa atual do usuário).
     """
@@ -162,6 +199,15 @@ class OrcamentoViewSet(viewsets.ModelViewSet):
         old_status_id = serializer.instance.status_id
         orcamento = serializer.save(usuario_ultima_alteracao=self.request.user)
         if orcamento.status_id != old_status_id:
+            try:
+                self._movimentar_estoque_orcamento_por_status(
+                    orcamento=orcamento,
+                    status_obj=orcamento.status,
+                    usuario=self.request.user,
+                )
+            except EstoqueError as e:
+                from rest_framework import serializers as drf_serializers
+                raise drf_serializers.ValidationError({'erro': str(e)})
             HistoricoStatusOrcamento.objects.create(
                 orcamento=orcamento,
                 usuario=self.request.user,
@@ -236,9 +282,15 @@ class OrcamentoViewSet(viewsets.ModelViewSet):
         orcamento.status = st
         orcamento.usuario_ultima_alteracao = request.user
         orcamento.data_ultima_alteracao = timezone.now()
-        orcamento.save(
-            update_fields=['status_id', 'usuario_ultima_alteracao', 'data_ultima_alteracao']
-        )
+        try:
+            self._movimentar_estoque_orcamento_por_status(
+                orcamento=orcamento,
+                status_obj=st,
+                usuario=request.user,
+            )
+        except EstoqueError as e:
+            return Response({'erro': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        orcamento.save(update_fields=['status_id', 'usuario_ultima_alteracao', 'data_ultima_alteracao'])
         HistoricoStatusOrcamento.objects.create(
             orcamento=orcamento,
             usuario=request.user,

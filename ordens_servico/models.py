@@ -11,6 +11,11 @@ class StatusOrcamento(models.Model):
     nome = models.CharField(max_length=100, verbose_name='Nome exibido')
     ordem = models.PositiveSmallIntegerField(default=0, db_index=True)
     ativo = models.BooleanField(default=True, verbose_name='Ativo na seleção')
+    movimenta_estoque_saida = models.BooleanField(
+        default=False,
+        verbose_name='Movimenta estoque (saída)',
+        help_text='Quando marcado, ao selecionar este status o sistema registra saída de estoque dos itens de produto.',
+    )
 
     class Meta:
         verbose_name = 'Status de orçamento'

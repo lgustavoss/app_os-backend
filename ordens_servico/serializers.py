@@ -27,7 +27,27 @@ class StatusOrcamentoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StatusOrcamento
-        fields = ['id', 'nome', 'ordem', 'ativo']
+        fields = ['id', 'nome', 'ordem', 'ativo', 'movimenta_estoque_saida']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        marca_saida = attrs.get(
+            'movimenta_estoque_saida',
+            self.instance.movimenta_estoque_saida if self.instance else False,
+        )
+        if marca_saida:
+            qs = StatusOrcamento.objects.filter(movimenta_estoque_saida=True)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {
+                        'movimenta_estoque_saida': (
+                            'Apenas um status pode estar marcado para movimentar estoque.'
+                        )
+                    }
+                )
+        return attrs
 
 
 class HistoricoStatusOrcamentoSerializer(serializers.ModelSerializer):
