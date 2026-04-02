@@ -3,6 +3,7 @@ Django settings for app_os project.
 """
 
 import os
+import re
 import warnings
 from pathlib import Path
 from dotenv import load_dotenv
@@ -32,7 +33,8 @@ def _csv_env(name: str) -> list[str]:
     raw = os.getenv(name, '').strip()
     if not raw:
         return []
-    return [x.strip() for x in raw.split(',') if x.strip()]
+    # Docker Compose e shell costumam separar com espaço; .env muitas vezes usa vírgula.
+    return [x.strip() for x in re.split(r'[\s,]+', raw) if x.strip()]
 
 
 def _validate_secret_key_for_production(key: str) -> None:

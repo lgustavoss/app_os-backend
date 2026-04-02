@@ -37,6 +37,12 @@ class ProdutoSerializer(serializers.ModelSerializer):
 class MovimentacaoEstoqueSerializer(serializers.ModelSerializer):
     produto_descricao = serializers.CharField(source='produto.descricao', read_only=True)
     orcamento_numero = serializers.CharField(source='orcamento.numero', read_only=True)
+    status_orcamento_nome = serializers.CharField(
+        source='status_orcamento.nome',
+        read_only=True,
+        allow_null=True,
+    )
+    usuario_nome = serializers.SerializerMethodField()
 
     class Meta:
         model = MovimentacaoEstoque
@@ -54,10 +60,23 @@ class MovimentacaoEstoqueSerializer(serializers.ModelSerializer):
             'orcamento',
             'orcamento_numero',
             'status_orcamento',
+            'status_orcamento_nome',
             'usuario',
+            'usuario_nome',
             'data_registro',
         ]
         read_only_fields = fields
+
+    def get_usuario_nome(self, obj):
+        u = obj.usuario
+        if not u:
+            return ''
+        nome = (u.get_full_name() or '').strip()
+        if nome:
+            return nome
+        if u.username:
+            return u.username
+        return u.email or ''
 
 
 class MovimentacaoEstoqueInputSerializer(serializers.Serializer):

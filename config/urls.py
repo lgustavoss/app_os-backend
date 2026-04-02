@@ -1,6 +1,8 @@
 """
 URL configuration for app_os project.
 """
+from pathlib import Path
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import include, path, re_path
@@ -52,5 +54,28 @@ elif getattr(settings, 'SERVE_MEDIA_VIA_DJANGO', False):
             r'^media/(?P<path>.*)$',
             serve,
             {'document_root': settings.MEDIA_ROOT},
+        ),
+    ]
+
+# Build Vite do frontend (imagem Docker / raíz do monorepo): servir SPA após API e health.
+_frontend_dist = Path(settings.BASE_DIR) / 'frontend_dist'
+if _frontend_dist.is_dir():
+    _assets_root = _frontend_dist / 'assets'
+    if _assets_root.is_dir():
+        urlpatterns += [
+            re_path(
+                r'^assets/(?P<path>.*)$',
+                serve,
+                {'document_root': str(_assets_root)},
+            ),
+        ]
+
+    def _spa_fallback(request, path):
+        return serve(request, 'index.html', document_root=str(_frontend_dist))
+
+    urlpatterns += [
+        re_path(
+            r'^(?!api/|health/|media/|static/)(?P<path>.*)$',
+            _spa_fallback,
         ),
     ]

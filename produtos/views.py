@@ -1,7 +1,15 @@
-from django.db.models import Q
+from django.db.models import (
+    Q,
+    OuterRef,
+    Subquery,
+    Value,
+    DecimalField,
+)
 from django.db.models.deletion import ProtectedError
+from django.db.models.functions import Coalesce
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -21,8 +29,12 @@ class ProdutoViewSet(viewsets.ModelViewSet):
 
     permission_classes = [IsAuthenticated, ProdutoModulePermission]
     serializer_class = ProdutoSerializer
-    queryset = Produto.objects.all().order_by('codigo')
+    queryset = Produto.objects.all()
     http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options']
+    filter_backends = [OrderingFilter]
+    # `saldo_estoque` existe na queryset como anotação (saldo da empresa atual).
+    ordering_fields = ['codigo', 'descricao', 'valor', 'saldo_estoque']
+    ordering = ['codigo']
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
@@ -42,6 +54,20 @@ class ProdutoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        empresa = get_empresa_atual(self.request)
+        dec3 = DecimalField(max_digits=12, decimal_places=3)
+        if empresa is not None:
+            saldo_sq = Subquery(
+                EstoqueProdutoEmpresa.objects.filter(
+                    empresa=empresa,
+                    produto_id=OuterRef('pk'),
+                ).values('saldo')[:1],
+                output_field=dec3,
+            )
+            qs = qs.annotate(saldo_estoque=Coalesce(saldo_sq, Value(0), output_field=dec3))
+        else:
+            qs = qs.annotate(saldo_estoque=Value(0, output_field=dec3))
+
         q = (self.request.query_params.get('search') or '').strip()
         if q:
             if q.isdigit():
